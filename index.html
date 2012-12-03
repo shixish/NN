@@ -7,344 +7,83 @@ Andrew Wessels 2012
 <head>
   <title>Neural Networks</title>
   <link href="style.css" type="text/css" rel="stylesheet">
+  <script type="text/javascript" src="jquery-1.8.3.min.js"></script>
+  <script type="text/javascript" src="three.js/build/three.min.js"></script>
+  <script type="text/javascript" src="dat.gui.min.js"></script>
+  <script type="text/javascript" src="NN.js"></script>
+  <script type="text/javascript" src="car_data.js"></script>
+  <script type="text/javascript" src="car_best.js"></script>
 </head>
 <body>
-<script type="text/javascript" src="dat.gui.min.js"></script>
-<script type="text/javascript" src="car_data.js"></script>
-<script type="text/javascript" src="car_best.js"></script>
+<div id="output-panel">
+  <div id="output">
+    Neural Network Classifier<br>
+    Written by Andrew Wessels 2012<br>
+  </div>
+</div>
 <script>
-  //function convertData(data){
-  //  var new_data = [];
-  //  for (var t in data){
-  //    new_data[t] = {'data':[], 'class':[]};
-  //    for (var a in data[t]){
-  //      if (a == last)//store the class seperately
-  //        new_data[t].class = data[t][a];
-  //      else{
-  //        for (var i = 0; i<value_labels[a].length; i++){
-  //          new_data[t].data.push(data[t][a] == i);
-  //        }
-  //      }
-  //    }
-  //  }
-  //  return new_data;
-  //}
-  //training_data = convertData(training_data);
-  //test_data = convertData(test_data);
-  //var blob = new Blob([JSON.stringify(new_test_data)]);
-  //console.log(window.URL.createObjectURL(blob));
-  
-  //sigmoidal function used for activation
-  function activation(x){
-    //console.log('x', x, '1/(1+Math.exp(-x)', 1/(1+Math.exp(-x)));
-    return 1/(1+Math.exp(-x));
-  }
-  
-  function activation_derivative(x){
-    var a = activation(x);
-    return a*(1-a);
-  }
-  
-  function NN(){
-    this.data = null;
-    this.learning_rate = .1;
-    this.hidden = 0;//how many hidden nodes to use
+  //(function ($){
+    var network = new NN();
+    network.text_output = $('#output-panel #output');
+    network.setData(car_data);
     
-    this.setData = function(data, preset){
-      this.data = data;
-      if (preset && preset.length > 0){
-        this.loadPreset(preset);
-      }else{//don't need this stuff if we have the nodes already.
-        this.reset();
+    var controller = {
+      trials:15,
+      car_best:function(){
+        network.loadPreset(car_best);
       }
-      return this;
-    }
+    };
     
-    this.loadPreset = function(preset){
-      if (preset && preset.length > 0){
-        this.preset = preset;
-        this.layer = new Layer().loadPreset(JSON.parse(JSON.stringify(this.preset)));//use JSON trick to clone obj.
-      }else{
-        console.error('Tried to load empty preset!');
-      }
-    }
-    
-    this.reset = function(){
-      var inputs = this.data.attr_count, outputs = this.data.classes;
-      this.layer = new Layer().init(inputs, inputs);
-      if (this.hidden)
-        this.layer.makeNext(this.hidden).makeNext(outputs);
-      else
-        this.layer.makeNext(outputs);
-    }
-    
-    //var normalizeValues = function(values){
-    //  var retValues = [];
-    //  for (var v in values){
-    //    retValues[v] = values[v]/value_labels.length;
-    //  }
-    //  return retValues;
-    //}
-    
-    this.autotrain = function(trials, upper, lower){
-      trials = trials || 500;
-      upper = upper || .3;
-      lower = lower || .001;
-      step = (upper-lower)/4;
+    //$().ready(function(){
+      var gui = new dat.GUI();
+      gui.add(network, 'autotrain');
+      gui.add(controller, 'trials', 0, 500);
+      gui.add(network, 'learning_rate', 0.0001, .5);
+      gui.add(network, 'train');
+      gui.add(network, 'test');
+      gui.add(network, 'hidden', 0, 15).listen();
       
-      var start_time = new Date().getTime();
       
-      this.learning_rate = upper;
-      this.train(Math.floor(trials/32));
-      this.learning_rate = step*.75;
-      this.train(Math.floor(trials/16));
-      this.learning_rate = step*.5;
-      this.train(Math.floor(trials/8));
-      this.learning_rate = step*.25;
-      this.train(Math.floor(trials/4));
-      this.learning_rate = lower;
-      this.train(Math.floor(trials/2+trials/32));
-      
-      var time = (new Date().getTime()-start_time)/1000, minutes = time/60;
-      console.log('Auto-Train took: '+minutes+' minutes.');
-      return this;
-    }
-    
-    this.train = function(trials, data){
-      trials = trials||15;
-      data = data||this.data.training;
-      for (var t = 0; t<trials; t++){
-        for (var i in data){
-          var values = data[i].data, classifier = data[i].class;
-          this.layer.train(values, classifier);
-          this.layer.adjust_weights(values, this.learning_rate);
-        }
-      }
-      return this;
-    }
-    
-    this.pickle = function(){
-      var layers = [];
-      this.layer.pickle(layers);
-      return layers;
-    }
-    
-    this.test = function(data){
-      data = data||this.data.testing;
-      var correct = 0, incorrect = 0, matrix=[];
-      for (var i in data){
-        var values = data[i].data, classifier = data[i].class;
-        //if (classifier == 2 || classifier == 3)
-        var output = this.layer.test(values, classifier);
-        var max = 0, maxi = 0;
-        for (var o in output){
-          if (output[o] > max){
-            max = output[o];
-            maxi = o;
-          }
-        }
-        if (!matrix[classifier])
-          matrix[classifier] = {correct:0, incorrect:0, correct_sum_certainty:0, incorrect_sum_certainty:0};
-        
-        if (maxi == classifier){
-          matrix[classifier].correct++;
-          matrix[classifier].correct_sum_certainty += output[maxi];
-          correct++;
-        }else{
-          matrix[classifier].incorrect++;
-          matrix[classifier].incorrect_sum_certainty += output[maxi];
-          incorrect++;
-        }
-        //console.log('I think the answer is: '+maxi+' (with '+(output[maxi]*100).toFixed(2)+'% certainty), actual answer is ' + classifier);
-        
-        //break;
-      }
-      for (var m in matrix){
-        console.log(this.data.class_labels[m] + ' correct: ' + matrix[m].correct + ' (avg. certainty: ' + (matrix[m].correct_sum_certainty/data.length*100).toFixed(2) + '%), incorrect: ' + matrix[m].incorrect + ' (avg. certainty: ' + (matrix[m].incorrect_sum_certainty/data.length*100).toFixed(2) + ')%');
-      }
-      console.log('Total Accuracy: ' + (correct/data.length*100).toFixed(2));
-      return this;
-    }
-  }
+      f1 = gui.addFolder('Reset');
+      f1.add(controller, 'car_best');
+      f1.add(network, 'reset');    
+    //});
+  //})(jQuery);
   
   
-  function Layer(preset, num_nodes, num_inputs){
-    this.nodes = [], this.next = null, this.prev = null;
-    
-    this.init = function(num_nodes, num_inputs){
-      for (var i = 0; i<num_nodes; i++){
-        this.nodes.push(new Node(num_inputs));
-      }
-      return this;
-    }
-    
-    this.loadPreset = function(preset){
-      if (preset && preset.length > 0){
-        var layer = preset.shift();
-        for (var i = 0; i<layer.length; i++){
-          this.nodes.push(new Node(layer[i]));
-        }
-        if (preset.length > 0)
-          this.makeNext().loadPreset(preset);
-      }else{
-        console.error('Tried to load empty preset!');
-      }
-      return this;
-    }
-    
-    this.output = [];
-    this.error = [];
-    this.train = function(values, real_class){
-      for (var n in this.nodes){
-        this.output[n] = activation(this.nodes[n].output(values));
-      }
-      if (this.next)
-        this.next.train(this.output, real_class);
-      else{//reached the output layer
-        //adjust the error for the output nodes:
-        for (var n in this.nodes){
-          this.error[n] = activation_derivative(this.output[n])*((n==real_class)-this.output[n]);
-          //console.log('real_class-this.output[e]', real_class, this.output[e], real_class-this.output[e]);
-        }
-        if (this.prev)
-          this.prev.adjust_error();
-      }
-      //errors have all been calculated by this point, we can now adjust the weights
-      //console.log('error:', this.error);
-      //console.log('calculate weights now: ', this);
-      //
-    }
-    
-    this.pickle = function(layers){
-      layers.push(this.nodes);
-      if (this.next)
-        this.next.pickle(layers);
-    }
-    
-    this.adjust_error = function(){
-      //error = the error values for the next layer
-      for (var n in this.nodes){
-        var sum = 0;
-        for (var e in this.next.error)//each of the nodes on the next layer
-          //console.log(this.nodes[n].weights[e], this);
-          sum += this.next.nodes[e].weights[n] * this.next.error[e];
-        //this.error[n] = sum;
-        this.error[n] = activation_derivative(this.output[n])*sum;
-        
-      }
-      //console.log(this.output);
-      //console.log(this.error);
-      if (this.prev)
-        this.prev.adjust_error();
-      //else{
-      //  console.log('reached the first layer');
-      //}
-    }
-    
-    this.adjust_weights = function(input, learning_rate){
-      for (var n in this.nodes){
-        for(var i in this.nodes[n].weights){
-          this.nodes[n].weights[i] += learning_rate*this.error[n]*input[i];
-        }
-        //this.nodes[n].adjust_weights(this.error[n], input);
-      }
-      if (this.next)
-        this.next.adjust_weights(this.output, learning_rate);
-    }
-    
-    this.test = function(input){
-      for (var n in this.nodes){
-        this.output[n] = activation(this.nodes[n].output(input));
-      }
-      //console.log(this.output);
-      if (this.next)
-        return this.next.test(this.output);
-      else{
-        //console.log('seeing:', this.output, 'real:', real_class);
-        return this.output;
-      }
-    }
-    
-    this.makeNext = function(num_nodes){
-      this.next = new Layer();
-      if (num_nodes)
-        this.next.init(num_nodes, this.nodes.length);
-      this.next.prev = this;
-      return this.next;
-    }
-  }
-  
-  function Node(input){
-    if (input && input.weights != undefined && input.threshold != undefined){
-      this.weights = input.weights;
-      this.threshold = input.threshold;
-    }else{
-      this.weights = [];
-      for (var i=0; i<input; i++) this.weights.push(Math.random());
-      this.threshold = Math.random();      
-    }
-    
-    this.output = function(input){
-      var sum = 0;
-      for(var i in this.weights){
-        sum += input[i]*this.weights[i];
-      }
-      //this.output = sum;
-      return sum;//-this.threshold;
-    }
-    
-    //this.adjust_weights = function(error, input){
-    //  for(var i in this.weights){
-    //    this.weights[i] += learning_rate*error*input[i];
-    //  }
-    //}
-  }
-  
-  
-  
-  
-  
-  //var data = {
-  //  data:[
-  //    [0,1],
-  //    [1,1],
-  //    [0,0],
-  //    [1,0]
-  //  ],
-  //  class:[1,1,0,0]
-  //}
-  //
-  ////var network = new NN(2, 2, 0);
-  ////network.train(data, 5000).test(data);
-  //var start_time = new Date().getTime();
-  ////console.log(car_data);
-  //var network = new NN(car_data);
-  //network.train().test();
-  //var time = (new Date().getTime()-start_time)/1000, minutes = time/60;
-  //console.log('execution took: '+minutes+' minutes.');
-    
+var camera, scene, renderer;
+var geometry, material, mesh;
 
-  var network = new NN();
-  network.setData(car_data, car_best);
-  
-  var controller = {
-    car_best:function(){
-      network.loadPreset(car_best);
-    }
-  };
-  
-  window.onload = function() {
-    var gui = new dat.GUI();
-    //gui.add(network, 'inputs');
-    //gui.add(network, 'outputs');
-    gui.add(network, 'hidden', 0, 15).listen();
-    gui.add(network, 'test');
-    
-    f1 = gui.addFolder('Reset');
-    f1.add(controller, 'car_best');
-    f1.add(network, 'reset');
-  };
-    
+init();
+animate();
+
+function init() {
+  camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 10000 );
+  camera.position.z = 1000;
+
+  scene = new THREE.Scene();
+
+  geometry = new THREE.CubeGeometry( 200, 200, 200 );
+  material = new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } );
+
+  mesh = new THREE.Mesh( geometry, material );
+  scene.add( mesh );
+
+  renderer = new THREE.CanvasRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight-5);
+
+  document.body.appendChild( renderer.domElement );
+}
+
+function animate() {
+  // note: three.js includes requestAnimationFrame shim
+  requestAnimationFrame( animate );
+
+  mesh.rotation.x += 0.01;
+  mesh.rotation.y += 0.02;
+
+  renderer.render( scene, camera );
+}
 </script>
 </body>
 </html>
