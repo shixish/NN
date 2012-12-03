@@ -9,9 +9,9 @@ Andrew Wessels 2012
   <link href="style.css" type="text/css" rel="stylesheet">
 </head>
 <body>
-<script src="dat.gui.min.js"></script>
-<script src="car_data.js"></script>
-<script src="car_best.js"></script>
+<script type="text/javascript" src="dat.gui.min.js"></script>
+<script type="text/javascript" src="car_data.js"></script>
+<script type="text/javascript" src="car_best.js"></script>
 <script>
   //function convertData(data){
   //  var new_data = [];
@@ -34,23 +34,6 @@ Andrew Wessels 2012
   //var blob = new Blob([JSON.stringify(new_test_data)]);
   //console.log(window.URL.createObjectURL(blob));
   
-  
-  //var attributes = ['buying', 'maint', 'doors', 'persons', 'lug_boot', 'safety', 'acceptable'], attr_count = attributes.length;
-  //var value_labels = [
-  //  ['low', 'med', 'high', 'vhigh'],//buying
-  //  ['low', 'med', 'high', 'vhigh'],//maint
-  //  ['2', '3', '4', '5more'],//doors
-  //  ['2', '4', 'more'],//persons
-  //  ['small', 'med', 'big'],//lug_boot
-  //  ['low', 'med', 'high'],//safety
-  //  ['unacc', 'acc', 'good', 'vgood']//acceptable
-  //];
-  //var classes = 4;
-  //var inputs = last = attr_count - 1;
-  //var layers = 2;
-  //var learning_rate = .15;
-  //var class_labels = value_labels[last];
-  
   //sigmoidal function used for activation
   function activation(x){
     //console.log('x', x, '1/(1+Math.exp(-x)', 1/(1+Math.exp(-x)));
@@ -62,27 +45,38 @@ Andrew Wessels 2012
     return a*(1-a);
   }
   
-  function NN(data, inputs, outputs, hidden){
-    this.data = data;
+  function NN(){
+    this.data = null;
     this.learning_rate = .1;
-    if (inputs && inputs.length > 0){
-      this.preset = inputs;
-      inputs = outputs = hidden = undefined;
+    this.hidden = 0;//how many hidden nodes to use
+    
+    this.setData = function(data, preset){
+      this.data = data;
+      if (preset && preset.length > 0){
+        this.loadPreset(preset);
+      }else{//don't need this stuff if we have the nodes already.
+        this.reset();
+      }
+      return this;
     }
-    this.inputs = inputs||car_data.attr_count;
-    this.outputs = outputs||car_data.classes;
-    this.hidden = hidden||0;
     
-    if (this.preset)
-      this.layer = new Layer(this.preset);
-    else
-      this.layer = new Layer([], this.inputs, this.inputs);
+    this.loadPreset = function(preset){
+      if (preset && preset.length > 0){
+        this.preset = preset;
+        this.layer = new Layer().loadPreset(JSON.parse(JSON.stringify(this.preset)));//use JSON trick to clone obj.
+      }else{
+        console.error('Tried to load empty preset!');
+      }
+    }
     
-    if (this.hidden)
-      this.layer.makeNext(this.hidden).makeNext(this.outputs);
-    else
-      this.layer.makeNext(this.outputs);
-    //console.log(this.layer);
+    this.reset = function(){
+      var inputs = this.data.attr_count, outputs = this.data.classes;
+      this.layer = new Layer().init(inputs, inputs);
+      if (this.hidden)
+        this.layer.makeNext(this.hidden).makeNext(outputs);
+      else
+        this.layer.makeNext(outputs);
+    }
     
     //var normalizeValues = function(values){
     //  var retValues = [];
@@ -122,14 +116,10 @@ Andrew Wessels 2012
       for (var t = 0; t<trials; t++){
         for (var i in data){
           var values = data[i].data, classifier = data[i].class;
-          //if (classifier == 2 || classifier == 3){
-            this.layer.train(values, classifier);
-            this.layer.adjust_weights(values, this.learning_rate);
-          //}
-          //break;
+          this.layer.train(values, classifier);
+          this.layer.adjust_weights(values, this.learning_rate);
         }
       }
-      //this.pickle();
       return this;
     }
     
@@ -137,7 +127,6 @@ Andrew Wessels 2012
       var layers = [];
       this.layer.pickle(layers);
       return layers;
-      //console.log(this.data);
     }
     
     this.test = function(data){
@@ -180,25 +169,29 @@ Andrew Wessels 2012
   
   
   function Layer(preset, num_nodes, num_inputs){
-    this.preset = preset||[]; //used to propigate stored nodes into the deeper layers...
     this.nodes = [], this.next = null, this.prev = null;
-    if (this.preset && this.preset.length > 0){
-      var layer = preset.shift();
-      for (var i = 0; i<layer.length; i++){
-        this.nodes.push(new Node(layer[i]));
-      }
-    }else{
+    
+    this.init = function(num_nodes, num_inputs){
       for (var i = 0; i<num_nodes; i++){
         this.nodes.push(new Node(num_inputs));
       }
+      return this;
     }
-    //if (this.data.layers != undefined && this.data.layers.length > 0){
-
-    //}else{
-    //  for (var i = 0; i<num_nodes; i++){
-    //    this.nodes.push(new Node(num_inputs));
-    //  }
-    //}
+    
+    this.loadPreset = function(preset){
+      if (preset && preset.length > 0){
+        var layer = preset.shift();
+        for (var i = 0; i<layer.length; i++){
+          this.nodes.push(new Node(layer[i]));
+        }
+        if (preset.length > 0)
+          this.makeNext().loadPreset(preset);
+      }else{
+        console.error('Tried to load empty preset!');
+      }
+      return this;
+    }
+    
     this.output = [];
     this.error = [];
     this.train = function(values, real_class){
@@ -273,14 +266,15 @@ Andrew Wessels 2012
     }
     
     this.makeNext = function(num_nodes){
-      this.next = new Layer(this.preset, num_nodes, this.nodes.length);
+      this.next = new Layer();
+      if (num_nodes)
+        this.next.init(num_nodes, this.nodes.length);
       this.next.prev = this;
       return this.next;
     }
   }
   
   function Node(input){
-    //this.edges = [new Edge(this, this, 1)]
     if (input && input.weights != undefined && input.threshold != undefined){
       this.weights = input.weights;
       this.threshold = input.threshold;
@@ -289,7 +283,6 @@ Andrew Wessels 2012
       for (var i=0; i<input; i++) this.weights.push(Math.random());
       this.threshold = Math.random();      
     }
-    //this.output = null;
     
     this.output = function(input){
       var sum = 0;
@@ -329,10 +322,29 @@ Andrew Wessels 2012
   //network.train().test();
   //var time = (new Date().getTime()-start_time)/1000, minutes = time/60;
   //console.log('execution took: '+minutes+' minutes.');
+    
+
+  var network = new NN();
+  network.setData(car_data, car_best);
   
+  var controller = {
+    car_best:function(){
+      network.loadPreset(car_best);
+    }
+  };
   
-  
-  
+  window.onload = function() {
+    var gui = new dat.GUI();
+    //gui.add(network, 'inputs');
+    //gui.add(network, 'outputs');
+    gui.add(network, 'hidden', 0, 15).listen();
+    gui.add(network, 'test');
+    
+    f1 = gui.addFolder('Reset');
+    f1.add(controller, 'car_best');
+    f1.add(network, 'reset');
+  };
+    
 </script>
 </body>
 </html>
