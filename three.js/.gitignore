@@ -1,0 +1,9 @@
+.DS_Store
+*.swp
+.project
+utils/node_modules/*
+utils/
+examples/
+docs/
+src/
+editor/

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <title>Neural Networks</title>
+  <link href="style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+
+<script src="training_data.js"></script>
+<script src="test_data.js"></script>
+<script>
+  var attributes = ['buying', 'maint', 'doors', 'persons', 'lug_boot', 'safety', 'acceptable'], attr_count = attributes.length;
+  var value_labels = [
+    ['low', 'med', 'high', 'vhigh'],//buying
+    ['low', 'med', 'high', 'vhigh'],//maint
+    ['2', '3', '4', '5more'],//doors
+    ['2', '4', 'more'],//persons
+    ['small', 'med', 'big'],//lug_boot
+    ['low', 'med', 'high'],//safety
+    ['unacc', 'acc', 'good', 'vgood']//acceptable
+  ]
+  var classes = 4;
+  var inputs = attr_count - 1;
+  var layers = 2;
+  var learning_rate = .5;
+  //var base_weight = .5;
+  /*var base_input_weights = [], base_input_weight = 1/inputs;
+  for (var i=0; i<inputs; i++) base_input_weights[i] = base_input_weight;*/
+  
+  //function Edge(n1, n2, w){
+  //  this.node1 = n1;
+  //  this.node2 = n2;
+  //  this.weight = w;
+  //}
+  
+  //sigmoidal function used for activation
+  function activation(x){
+    return 1/(1+Math.exp(-x));
+  }
+  
+  function activation_derivative(x){
+    var a = activation(x);
+    return a*(1-a);
+  }
+  
+  function NN(classes){
+    this.layers = new Layer(inputs, inputs);
+    layer.makeNext(classes);
+    
+    this.layers = function(){
+      this.inputLayer.train(values);
+      
+    }
+  }
+  
+  function Layer(num_nodes, num_inputs){
+    this.nodes = [], this.next = null, this.prev = null;
+    for (var i = 0; i<num_nodes; i++){
+      this.nodes.push(new Node(num_inputs));
+    }
+    this.output = [];
+    this.error = [];
+    this.train = function(values, real_class){
+      for (var n in this.nodes){
+        this.output[n] = activation(this.nodes[n].output(values));
+      }
+      if (this.next)
+        this.next.train(this.output, real_class);
+      else{//reached the output layer
+        //adjust the error for the output nodes:
+        for (var n in this.nodes){
+          //console.log('(e==real_class)', e, real_class, e==real_class);
+          this.error[n] = activation_derivative(this.output[n])*((n==real_class)-this.output[n]);
+          //console.log('real_class-this.output[e]', real_class, this.output[e], real_class-this.output[e]);
+        }
+        
+        //console.log('reached the end layer');
+        //console.log(this, 'output:', this.output, 'error:', this.error);
+        if (this.prev)
+          this.prev.adjust_error(this.error);
+        //else
+        //  console.log('only one layer??');
+      }
+      //errors have all been calculated by this point, we can now adjust the weights
+      //console.log('error:', this.error);
+      
+      //this.adjust_weights(values);
+      
+    }
+    
+    this.test = function(values, real_class){
+      for (var n in this.nodes){
+        this.output[n] = activation(this.nodes[n].output(values));
+      }
+      //console.log(this.output);
+      if (this.next)
+        this.next.test(this.output, real_class);
+      else{
+        //var test_error = [];
+        for (var e in this.output){
+          //test_error[e] = real_class-this.output[e];
+          console.log('seeing:', this.output, 'real:', real_class);
+        }
+      }
+    }
+    
+    this.adjust_error = function(error){
+      //error = the error values for the next layer
+      for (var n in this.nodes){
+        var sum = 0;
+        for (var e in error)
+          sum += activation_derivative(this.output[n])*this.nodes[n].weights[e] * error[e];
+        this.error[n] = sum;
+      }
+      if (this.prev)
+        this.prev.adjust_error(this.error);
+      //else{
+      //  console.log('reached the first layer');
+      //}
+    }
+    
+    this.adjust_weights = function(values){
+      for (var n in this.nodes){
+        this.nodes[n].adjust_weights(this.error[n], values);
+      }
+    }
+    
+    this.makeNext = function(num_nodes){
+      this.next = new Layer(num_nodes, this.nodes.length);
+      this.next.prev = this;
+      return this.next;
+    }
+  }
+  
+  function Node(num_inputs){
+    //this.edges = [new Edge(this, this, 1)]
+    this.weights = [];
+    this.threshold = Math.random();
+    for (var i=0; i<num_inputs; i++) this.weights.push(Math.random());
+    
+    //this.output = null;
+    
+    this.output = function(input){
+      var sum = 0;
+      for(var i in this.weights){
+        sum += input[i]*this.weights[i];
+      }
+      //this.output = sum;
+      return sum-this.threshold;
+    }
+    
+    this.adjust_weights = function(error, values){
+      for(var i in this.weights){
+        this.weights[i] += learning_rate*error*values[i];
+        //activation_derivative();
+      }
+    }
+  }
+  
+  //weights are associated with inputs
+  
+  //var nodes = [];
+  //for (var l = 0; l<layers||l<1; l++){
+  //  nodes[l] = [];
+  //  for (var i = 0; i<inputs; i++){
+  //    nodes[l].push(new Node(inputs));
+  //  }
+  //}
+  //console.log(nodes);
+  
+  //var node = new Node(inputs);
+  //node.train(training_data[0]);
+  //console.log(node.output);
+  
+  var layer = new Layer(inputs, inputs);
+  layer.makeNext(4);
+  //layer.makeNext(3).makeNext(1);
+  for (var t = 0; t<1; t++){
+    for (var i in training_data){
+      if (training_data[i][inputs] < 2)
+      layer.train(training_data[i], training_data[i][inputs]);
+    }
+  }
+  for (var i in test_data){
+    if (test_data[i][inputs] < 2)
+    layer.test(test_data[i], test_data[i][inputs]);
+  }
+  console.log(layer);
+  
+  
+</script>
+</body>
+</html>
