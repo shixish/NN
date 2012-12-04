@@ -110,7 +110,7 @@ function NN(){
     for (var i in data){
       var values = data[i].data, classifier = data[i].class;
       //if (classifier == 2 || classifier == 3)
-      var output = this.layer.test(values, classifier);
+      var output_layer = this.layer.test(values, classifier), output = output_layer.output;
       var max = 0, maxi = 0;
       for (var o in output){
         if (output[o] > max){
@@ -212,7 +212,11 @@ function Layer(preset, num_nodes, num_inputs){
   }
   
   this.pickle = function(layers){
-    layers.push(this.nodes);
+    var pkl = [];
+    for (var n in this.nodes){
+      pkl.push({threshold:this.nodes[n].threshold, weights:this.nodes[n].weights});
+    }
+    layers.push(pkl);
     if (this.next)
       this.next.pickle(layers);
   }
@@ -257,7 +261,7 @@ function Layer(preset, num_nodes, num_inputs){
       return this.next.test(this.output);
     else{
       //console.log('seeing:', this.output, 'real:', real_class);
-      return this.output;
+      return this;
     }
   }
   
