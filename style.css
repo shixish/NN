@@ -7,6 +7,9 @@ html, body, canvas{
   margin: 0;
   overflow: hidden;
 }
+a{
+  color: lightblue;
+}
 #output-panel{
   background-color: RGBA(25,25,25,.75);
   position: absolute;

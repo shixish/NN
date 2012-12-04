@@ -10,10 +10,10 @@ Andrew Wessels 2012
   <script type="text/javascript" src="jquery-1.8.3.min.js"></script>
   <script type="text/javascript" src="three.js/build/three.min.js"></script>
   <script type="text/javascript" src="dat.gui.min.js"></script>
-  <script type="text/javascript" src="NN.js"></script>
   <script type="text/javascript" src="car_data.js"></script>
   <script type="text/javascript" src="bupa_data.js"></script>
-  
+  <script type="text/javascript" src="NN.js"></script>
+  <script type="text/javascript" src="graphics.js"></script>
 </head>
 <body>
 <div id="output-panel">
@@ -23,82 +23,53 @@ Andrew Wessels 2012
   </div>
 </div>
 <script>
-  //(function ($){
-    var network = new NN(), used_data = bupa_data;
-    network.text_output = $('#output-panel #output');
-    network.setData(used_data);
-    
-    var controller = {
-      trials:15,
-      load_best_weights:function(){
-        network.loadPreset(used_data.best_weights);
-      },
-      use_bupa_data:function(){
-        used_data = bupa_data;
-        network.setData(used_data);
-        network.printhr();
-        network.println('Now using BUPA data.');
-      },
-      use_car_data:function(){
-        used_data = car_data;
-        network.setData(used_data);
-        network.printhr();
-        network.println('Now using car data.');
-      },
-    };
-    
-    //$().ready(function(){
-      var gui = new dat.GUI();
-      //gui.add(network, 'hidden', 0, 15).listen();
-      gui.add(network, 'test');
-      f0 = gui.addFolder('Train');
-      f0.add(network, 'autotrain');
-      f0.add(controller, 'trials', 0, 500);
-      f0.add(network, 'learning_rate', 0.0001, .5);
-      f0.add(network, 'train');
-      
-      f1 = gui.addFolder('Change data');
-      f1.add(controller, 'use_bupa_data');
-      f1.add(controller, 'use_car_data');
-      f1.add(controller, 'load_best_weights');
-      f1.add(network, 'reset');
-    //});
-  //})(jQuery);
   
+  var network = new NN(), used_data = bupa_data;
+  network.text_output = $('#output-panel #output');
+  network.init_graphics();
   
-var camera, scene, renderer;
-var geometry, material, mesh;
-
-init();
-animate();
-
-function init() {
-  camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 10000 );
-  camera.position.z = 1000;
-
-  scene = new THREE.Scene();
-
-  geometry = new THREE.CubeGeometry( 200, 200, 200 );
-  material = new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } );
-
-  mesh = new THREE.Mesh( geometry, material );
-  scene.add( mesh );
-
-  renderer = new THREE.CanvasRenderer();
-  renderer.setSize(window.innerWidth, window.innerHeight-5);
-
-  document.body.appendChild( renderer.domElement );
-}
-
-function animate() {
-  // note: three.js includes requestAnimationFrame shim
-  requestAnimationFrame( animate );
-
-  mesh.rotation.x += 0.01;
-  mesh.rotation.y += 0.02;
-
-  renderer.render( scene, camera );
-}
+  var controller = {
+    trials:15,
+    load_best_weights:function(){
+      network.loadPreset(used_data.best_weights);
+    },
+    use_bupa_data:function(){
+      used_data = bupa_data;
+      network.setData(used_data);
+      network.printhr();
+      network.println('Now using BUPA data.');
+    },
+    use_car_data:function(){
+      used_data = car_data;
+      network.setData(used_data);
+      network.printhr();
+      network.println('Now using car data.');
+    },
+    pickle:function(){
+      var url = window.URL.createObjectURL(new Blob([JSON.stringify(network.pickle())]));
+      network.printhr();
+      network.println('Network weights have been exported. <a href="'+url+'" target="_blank">Click here</a> to copy the weights.');
+    },
+  };
+  
+  controller.use_bupa_data();
+  var gui = new dat.GUI();
+  //gui.add(network, 'hidden', 0, 15).listen();
+  gui.add(network, 'test');
+  f0 = gui.addFolder('Train');
+  f0.add(network, 'autotrain');
+  f0.add(controller, 'trials', 0, 500);
+  f0.add(network, 'learning_rate', 0.0001, .5);
+  f0.add(network, 'train');
+  
+  f1 = gui.addFolder('Change data');
+  f1.add(controller, 'use_bupa_data');
+  f1.add(controller, 'use_car_data');
+  f1.add(controller, 'load_best_weights');
+  f1.add(controller, 'pickle');
+  f1.add(network, 'reset');
 </script>
+<!--<script type="text/javascript" src="car_original.js"></script>
+<script type="text/javascript" src="conversion_code.js"></script>-->
 </body>
 </html>

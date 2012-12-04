@@ -1,20 +1,22 @@
-var max = [], min = [];/*, scale = [];*/
-for (var t in training_data){
-  for (var a in training_data[t]){
-    max[a] = Math.max(training_data[t][a], max[a])||training_data[t][a];
-    min[a] = Math.min(training_data[t][a], min[a])||training_data[t][a];
+var max = [], min = [], sets = [training_data, test_data];
+for (var d in sets){
+  var data = sets[d];
+  for (var t in data){
+    for (var a in data[t]){
+      if (max[a] == null)
+        max[a] = data[t][a];
+      else
+        max[a] = Math.max(data[t][a], max[a]);
+      
+      if (min[a] == null)
+        min[a] = data[t][a];
+      else
+        min[a] = Math.min(data[t][a], min[a]);
+    }
   }
 }
-for (var t in test_data){
-  for (var a in training_data[t]){
-    max[a] = Math.max(test_data[t][a], max[a])||test_data[t][a];
-    min[a] = Math.min(test_data[t][a], min[a])||test_data[t][a];
-  }
-}
-//for (var z in max)
-//  scale[z] = min[z]/max[z];
 
-//console.log(scale, min, max);
+console.log(min, max);
   
 function convertData(data){
   var new_data = [], last = data[0].length-1;
@@ -22,16 +24,20 @@ function convertData(data){
     new_data[t] = {'data':[], 'class':[]};
     for (var a in data[t]){
       if (a == last)//store the class seperately
-        new_data[t].class = data[t][a]-1;
+        new_data[t].class = data[t][a];
       else{
-        new_data[t].data.push((data[t][a]-min[a])/(max[a]-min[a]));
+        var tmp = (data[t][a]-min[a])/(max[a]-min[a]);
+        new_data[t].data.push(tmp);
         //for (var i = 0; i<value_labels[a].length; i++){
         //  new_data[t].data.push(data[t][a] == i);
         //}
       }
     }
   }
-  console.log(window.URL.createObjectURL(new Blob([JSON.stringify(new_data)])));
+  var url = window.URL.createObjectURL(new Blob([JSON.stringify(new_data)]));
+  //console.log(window.URL.createObjectURL(new Blob([JSON.stringify(new_data)])));
+  network.printhr();
+  network.println('<a href="'+url+'" target="_blank">Conversion complete</a>');
   return new_data;
 }
 training_data = convertData(training_data);

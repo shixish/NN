@@ -33,6 +33,7 @@ function NN(){
     if (preset && preset.length > 0){
       this.preset = preset;
       this.layer = new Layer().loadPreset(JSON.parse(JSON.stringify(this.preset)));//use JSON trick to clone obj.
+      if (this.redrawGraphics) this.redrawGraphics();
     }else{
       console.error('Tried to load empty preset!');
     }
@@ -45,6 +46,7 @@ function NN(){
       this.layer.makeNext(this.hidden).makeNext(outputs);
     else
       this.layer.makeNext(outputs);
+    if (this.redrawGraphics) this.redrawGraphics();
   }
   
   //var normalizeValues = function(values){
@@ -92,6 +94,7 @@ function NN(){
       }
     }
     this.println('Training complete!');
+    if (this.redrawGraphics) this.redrawGraphics();
     return this;
   }
   
@@ -285,6 +288,9 @@ function Node(input){
     //this.output = sum;
     return sum;//-this.threshold;
   }
+  
+  //initializes some graphics stuff see graphics.js
+  if (this.makeMesh) this.makeMesh();
   
   //this.adjust_weights = function(error, input){
   //  for(var i in this.weights){
