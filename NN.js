@@ -119,7 +119,7 @@ function NN(){
           maxi = o;
         }
       }
-      output_layer.nodes[maxi].brighten = 2;
+      output_layer.nodes[maxi].brighten = Math.maintainRange(output_layer.nodes[maxi].brighten+2, 5);
       if (!matrix[classifier])
         matrix[classifier] = {correct:0, incorrect:0, correct_sum_certainty:0, incorrect_sum_certainty:0};
       
@@ -304,4 +304,23 @@ function Node(input){
   //    this.weights[i] += learning_rate*error*input[i];
   //  }
   //}
+}
+
+Math.easeOutExpo = function (t, b, c, d) {
+	return c * ( -Math.pow( 2, -10 * t/d ) + 1 ) + b;
+};
+
+Math.randSeed = function(n){
+    return Math.abs(Number(new Date(n%9999, n%12, n%30, n%24, n%60, n%60, n%1000)));
+};
+
+Math.maintainRange = function(value, upper, lower){
+  upper = upper||1;
+  lower = lower||0;
+  if (value > upper)
+    return upper;
+  else if (value < lower || !value)
+    return lower;
+  else
+    return value;
 }
