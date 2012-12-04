@@ -107,6 +107,7 @@ function NN(){
   this.test = function(data){
     data = data||this.data.testing;
     var correct = 0, incorrect = 0, matrix=[];
+    var log = "";
     for (var i in data){
       var values = data[i].data, classifier = data[i].class;
       //if (classifier == 2 || classifier == 3)
@@ -118,6 +119,7 @@ function NN(){
           maxi = o;
         }
       }
+      output_layer.nodes[maxi].brighten = 2;
       if (!matrix[classifier])
         matrix[classifier] = {correct:0, incorrect:0, correct_sum_certainty:0, incorrect_sum_certainty:0};
       
@@ -130,8 +132,7 @@ function NN(){
         matrix[classifier].incorrect_sum_certainty += output[maxi];
         incorrect++;
       }
-      //console.log('I think the answer is: '+maxi+' (with '+(output[maxi]*100).toFixed(2)+'% certainty), actual answer is ' + classifier);
-      
+      log += 'I think the answer is: '+maxi+' (with '+(output[maxi]*100).toFixed(2)+'% certainty), actual answer is ' + classifier + '\n';
       //break;
     }
     this.printhr();
@@ -139,6 +140,8 @@ function NN(){
       this.println(this.data.class_labels[m] + ' correct: ' + matrix[m].correct + ' (avg. certainty: ' + (matrix[m].correct_sum_certainty/data.length*100).toFixed(2) + '%), incorrect: ' + matrix[m].incorrect + ' (avg. certainty: ' + (matrix[m].incorrect_sum_certainty/data.length*100).toFixed(2) + ')%');
     }
     this.println('Total Accuracy: ' + (correct/data.length*100).toFixed(2));
+    var url = window.URL.createObjectURL(new Blob([log]));
+    this.println('<a href="'+url+'" target="_blank">View the log</a>');
     return this;
   }
   
